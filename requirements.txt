@@ -1,0 +1,8 @@
+# Compatible major/minor families; locally checked with Python 3.9.6:
+# Pillow 11.3.0, qrcode 8.2, OpenCV 4.13.0.92, pyserial 3.5, numpy 2.0.2.
+# Ranges are compatibility bounds, not a fully pinned reproducible environment.
+Pillow>=11.3,<12
+qrcode>=8.2,<9
+opencv-python-headless>=4.13,<4.14
+pyserial>=3.5,<4
+numpy>=2.0,<3

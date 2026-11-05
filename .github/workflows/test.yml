@@ -1,0 +1,32 @@
+name: Offline checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  macos-offline:
+    runs-on: macos-14
+    timeout-minutes: 15
+    env:
+      NIIMBOT_BLE_BUILD_DIR: ${{ github.workspace }}/.build/ble-bridge
+      TMPDIR: ${{ github.workspace }}/.build/tmp
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Prepare isolated environment
+        run: |
+          mkdir -p "$TMPDIR"
+          python3 -m venv .venv
+          .venv/bin/python3 -m pip install -r requirements.txt
+      - name: Build and sign native helper without launching it
+        run: .venv/bin/python3 scripts/build_ble_bridge.py
+      - name: Native self-test only (no CoreBluetooth manager)
+        run: '"$NIIMBOT_BLE_BUILD_DIR/NIIMBOT BLE Bridge.app/Contents/MacOS/niimbot-ble-bridge" --self-test'
+      - name: Offline unit and packaging tests
+        run: .venv/bin/python3 -m unittest discover -s tests -v
+      - name: Package dry-run (no upload)
+        run: .venv/bin/python3 scripts/package_skill.py --dry-run

@@ -1,0 +1,17 @@
+.venv/
+venv/
+.build/
+build/
+dist/
+jobs/
+__pycache__/
+*.py[cod]
+*.app/
+*.dylib
+*.so
+*.o
+*.zip
+.DS_Store
+.env
+.env.*
+*.log

@@ -1,0 +1,4 @@
+interface:
+  display_name: "NIIMBOT AI Printer"
+  short_description: "离线制作设备标签，通过 USB 或 macOS BLE 桥检查和打印 B1 Pro"
+  default_prompt: "使用 $niimbot-label 离线生成并核对设备 ID 标签，再按本次授权通过 USB 或 macOS 原生 BLE 桥检查状态或打印。"

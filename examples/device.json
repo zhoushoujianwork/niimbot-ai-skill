@@ -1,0 +1,11 @@
+{
+  "device_id": "DEMO-000001",
+  "model": "DemoBoard",
+  "variant": "基础版",
+  "hardware_revision": "V1.0",
+  "firmware": "0.1.0",
+  "core": "example",
+  "width_mm": 30,
+  "height_mm": 20,
+  "copies": 1
+}

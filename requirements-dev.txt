@@ -1,0 +1,3 @@
+-r requirements.txt
+# Optional: only for the external Agent Skills quick_validate.py tool.
+PyYAML>=6.0,<7
