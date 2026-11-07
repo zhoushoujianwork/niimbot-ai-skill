@@ -25,6 +25,10 @@ python3 scripts/niimbot_usb.py render --job "$JOBDIR/identity.json" --output "$J
 
 输出 `label.png`、4倍最近邻 `preview.png` 与 `metadata.json`（身份、字体、边界框、二维码内容与图像SHA256）。普通 QR 必须通过独立 OpenCV 解码并与完整 ID 完全一致；原生版式与字段限制见 [USB 协议](references/usb-protocol.md)。
 
+## 自动识别纸卷尺寸
+
+用户要求自动尺寸时，先读 [RFID 目录](references/stock-catalog.md)。为 USB/BLE 的 status 与 print 传同一 `--stock-catalog` 私有 JSON 路径；按完整纸卷型号编码和类型精确匹配。未知型号先请用户确认包装尺寸并记录来源，下次自动匹配；不根据容量推算尺寸。匹配到其他尺寸不代表支持该尺寸打印，必须检查 `stock_print_supported`。
+
 ## USB
 
 先读 [USB 协议与边界](references/usb-protocol.md)。核对 VID:PID `3513:0002`、完整描述符序列号及确切端口；端口不是永久身份。打开前检查 `lsof` 和对应 tty 别名，忙或结果不明即停止，不抢占端口。实时核对型号4097、序列号、300dpi、合理头宽、盖关和有纸。

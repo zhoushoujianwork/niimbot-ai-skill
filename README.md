@@ -42,6 +42,10 @@ python3 scripts/niimbot_usb.py render --job "$JOBDIR/identity.json" --output "$J
 
 默认字体为 macOS Arial Bold / Arial Narrow Bold。可用 `--font` 和 `--id-font` 指向自己合法安装的兼容字体。中文小程序版式另使用 Hiragino Sans GB；缺字或布局不合适必须重新选择字体和预览。
 
+## 自动匹配纸卷尺寸
+
+支持通过 `--stock-catalog` 读取 RFID 并精确匹配用户确认过的纸卷尺寸；未知型号返回空尺寸，不猜测。首次确认后可在本机复用映射。参见 [RFID 尺寸目录](references/stock-catalog.md)。当前实际打印仍仅验证30×20mm。
+
 ## USB：先检查，再按授权打印
 
 退出已运行的 NIIMBOT App（若有），避免设备争用。枚举只读取本机端口描述符，不执行打印协议：
