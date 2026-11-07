@@ -270,6 +270,7 @@ def main(argv=None):
         p = sub.add_parser(command)
         p.add_argument("--device", required=True)
         p.add_argument("--expect-serial", required=True)
+        p.add_argument("--stock-catalog", type=Path, help="confirmed RFID SKU-to-size JSON")
         if command == "print":
             p.add_argument("--image", type=Path, required=True)
             p.add_argument("--execute", action="store_true", required=True)
@@ -308,10 +309,14 @@ def main(argv=None):
             report["bridge_out_of_band"] = transport.out_of_band_notifications
             link.pump(0.02)
             report["printer"] = usb.query_status(link, args.expect_serial)
+            if args.stock_catalog is not None:
+                usb.identify_stock(link, report["printer"], args.stock_catalog)
             report["ready"] = report["printer"]["cover_closed"] and report["printer"]["paper_present"]
             if not report["ready"]:
                 raise usb.ProtocolError("cover open or no paper")
             if args.command == "print":
+                if args.stock_catalog is not None:
+                    usb.require_supported_stock(report["printer"])
                 usb.print_one(link, image, report["printer"], report)
             report["protocol_completed"] = True
         report["ok"] = True

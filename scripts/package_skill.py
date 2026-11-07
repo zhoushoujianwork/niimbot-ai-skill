@@ -30,6 +30,8 @@ ALLOWLIST = (
     "examples/device.json",
     "assets/label-30x20mm.png",
     "assets/preview.png",
+    "references/stock-catalog.md",
+    "tests/test_stock_catalog.py",
     "references/usb-protocol.md",
     "references/ble-protocol.md",
     "references/ble-bridge.md",

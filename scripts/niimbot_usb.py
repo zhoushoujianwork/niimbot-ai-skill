@@ -144,7 +144,82 @@ def query_status(link, expect_serial):
             "chipset": None,
             "dpi": DPI, "printhead_pixels": head, "cover_closed": hb[4] == 0,
             "paper_present": hb[5] == 0, "paper_rfid_read": hb[6] != 0,
-            "stock_mm": [30, 20], "stock_basis": "explicit configuration, not paper-size query"}
+            "stock_mm": None, "stock_basis": "unknown; RFID lookup requires --stock-catalog"}
+
+
+def parse_rfid(data):
+    """Pinned niimbluelib RfidInfo layout; never interpret capacity as dimensions."""
+    if len(data) == 1:
+        return {"tag_present": False}
+    offset = 0
+
+    def take(count):
+        nonlocal offset
+        if count < 0 or offset + count > len(data):
+            raise ProtocolError("truncated RFID payload")
+        value = data[offset:offset + count]
+        offset += count
+        return value
+
+    def string():
+        length = take(1)[0]
+        if length > 127:
+            raise ProtocolError("invalid RFID string length")
+        return take(length).decode("utf-8", errors="strict")
+
+    result = {"tag_present": True, "tag_uid": take(8).hex(),
+              "barcode": string(), "roll_serial": string(),
+              "total_labels": int.from_bytes(take(2), "big"),
+              "used_labels": int.from_bytes(take(2), "big"),
+              "consumables_type": take(1)[0]}
+    remaining = len(data) - offset
+    if remaining not in (0, 2, 10):
+        raise ProtocolError("unknown RFID extension layout")
+    if remaining:
+        result["capacity"] = int.from_bytes(take(2), "big")
+    if remaining == 10:
+        result["tag_uid2"] = take(8).hex()
+    return result
+
+
+def identify_stock(link, printer, catalog_path):
+    """Exact SKU/type match against an explicitly supplied, confirmed local catalog."""
+    import math
+    catalog = json.loads(catalog_path.read_text())
+    if catalog.get("version") != 1 or not isinstance(catalog.get("stocks"), list):
+        raise ValueError("stock catalog requires version=1 and stocks list")
+    keys = set()
+    for entry in catalog["stocks"]:
+        barcode, kind = entry.get("barcode"), entry.get("consumables_type")
+        if not isinstance(barcode, str) or not barcode or type(kind) is not int or not 0 <= kind <= 255:
+            raise ValueError("catalog requires exact barcode and integer consumables_type")
+        key = (barcode, kind)
+        if key in keys:
+            raise ValueError("duplicate stock mapping")
+        keys.add(key)
+        for name in ("width_mm", "height_mm"):
+            value = entry.get(name)
+            if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+                raise ValueError("invalid catalog dimension: " + name)
+        if not isinstance(entry.get("source"), str) or not entry["source"].strip():
+            raise ValueError("stock dimensions require a confirmation source")
+    rfid = parse_rfid(link.request(0x1A, b"\x01", 0x1B))
+    printer.update(rfid=rfid, stock_mm=None, stock_basis="unknown SKU or missing RFID",
+                   stock_print_supported=False)
+    if not rfid["tag_present"]:
+        return
+    matches = [e for e in catalog["stocks"]
+               if (e["barcode"], e["consumables_type"]) == (rfid["barcode"], rfid["consumables_type"])]
+    if matches:
+        entry = matches[0]
+        dimensions = [entry["width_mm"], entry["height_mm"]]
+        printer.update(stock_mm=dimensions, stock_basis="exact RFID barcode/type catalog match",
+                       stock_source=entry["source"], stock_print_supported=dimensions == [30, 20])
+
+
+def require_supported_stock(printer):
+    if not printer.get("stock_print_supported"):
+        raise ProtocolError("unknown or unvalidated stock size; no print setup sent")
 
 
 def raster_rows(image, printhead_pixels):
@@ -325,6 +400,7 @@ def main(argv=None):
         p = sub.add_parser(command)
         p.add_argument("--port", required=True)
         p.add_argument("--expect-serial", required=True)
+        p.add_argument("--stock-catalog", type=Path, help="confirmed RFID SKU-to-size JSON; unknown stock blocks printing")
         if command == "print":
             p.add_argument("--image", type=Path, required=True)
             p.add_argument("--execute", action="store_true", required=True)
@@ -354,10 +430,14 @@ def main(argv=None):
             link = Link(transport, deadline, report["events"])
             link.pump(0.02)  # preserve queued events before issuing the handshake
             report["printer"] = query_status(link, args.expect_serial)
+            if args.stock_catalog is not None:
+                identify_stock(link, report["printer"], args.stock_catalog)
             report["ready"] = report["printer"]["cover_closed"] and report["printer"]["paper_present"]
             if not report["ready"]:
                 raise ProtocolError("cover open or no paper")
             if args.command == "print":
+                if args.stock_catalog is not None:
+                    require_supported_stock(report["printer"])
                 print_one(link, image, report["printer"], report)
         report["ok"] = True
     except Exception as exc:
